@@ -1,0 +1,314 @@
+NULL
+
+SELECT
+COUNT(*)
+FROM `riesgo-relativo406716.pruebas.default`
+WHERE default_flag IS NULL
+
+DUPLICADOS
+
+SELECT loan_type, COUNT(*) AS cantidad_duplicados
+FROM `riesgo-relativo406716.pruebas.loans_outstanding`
+GROUP BY loan_type
+HAVING COUNT(*) > 1;
+
+AGRUPAR VARIABLES POR EDAD COMO BUEN Y MAL PAGADOR
+
+SELECT
+  default_flag,
+  age,
+  COUNT(*) AS count
+FROM
+  `riesgo-relativo406716.pruebas.tabla_general`
+GROUP BY
+  default_flag, age
+ORDER BY
+  default_flag, age;
+SELECT
+  age,
+  SUM(CASE WHEN default_flag = 0 THEN 1 ELSE 0 END) AS count_default_0,
+  SUM(CASE WHEN default_flag = 1 THEN 1 ELSE 0 END) AS count_default_1
+FROM
+  `riesgo-relativo406716.pruebas.tabla_general`
+GROUP BY
+  age
+ORDER BY
+  age;
+
+TABLA VIEW LIMPIAS
+
+SELECT
+  *,
+  CASE
+    WHEN debt_ratio > 1 THEN 1
+    ELSE debt_ratio
+  END AS debt_ratio_limpio,
+  CASE
+    WHEN using_lines_not_secured_personal_assets > 1 THEN 1
+    ELSE using_lines_not_secured_personal_assets
+  END AS using_lines_not_secured_personal_assets_limpio
+FROM
+  `riesgo-relativo406716.pruebas.loans_detail`
+
+WITH UserInfo_limpia AS (
+  SELECT
+    user_id,
+    age,
+    sex,
+    IFNULL(last_month_salary, 5200) AS last_month_salary_limpio,
+    IFNULL(number_dependents, 0) AS number_dependents_limpio
+  FROM
+    `riesgo-relativo406716.pruebas.user_info`
+  WHERE 
+    age <= 89 AND user_id != 21096
+)
+SELECT * FROM UserInfo_limpia;
+
+CREACION DE NUEVAS VARIABLES
+
+WITH type_loan AS (
+  SELECT
+    user_id,
+    SUM(CASE WHEN UPPER(loan_type) IN ('OTHER', 'Other', 'other', 'others') THEN 1 ELSE 0 END) AS loan_other,
+    SUM(CASE WHEN UPPER(loan_type) IN ('REAL ESTATE', 'Real Estate', 'real estate') THEN 1 ELSE 0 END) AS loan_real_state
+  FROM `riesgo-relativo406716.pruebas.loans_outstanding`
+  GROUP BY user_id
+)
+SELECT
+  user_id,
+  loan_other,
+  loan_real_state,
+  (loan_other + loan_real_state) AS total_loans
+FROM type_loan;
+
+TABLA VIEW DE RIESGO RELATIVO
+
+WITH Totals AS (
+  SELECT
+    COUNTIF(default_flag = 1) AS total_default_1,
+    COUNTIF(default_flag = 0) AS total_default_0
+  FROM `riesgo-relativo406716.pruebas.cuartil`
+)
+SELECT
+  cuartil_last_month_salary AS cuartil,
+  'last_month_salary' AS cuartil_type,
+  COUNTIF(default_flag = 1) / total_default_1 AS ratio_default_1,
+  COUNTIF(default_flag = 0) / total_default_0 AS ratio_default_0,
+  (COUNTIF(default_flag = 1) / total_default_1) / (COUNTIF(default_flag = 0) / total_default_0) AS riesgo_relativo,
+  CASE
+    WHEN (COUNTIF(default_flag = 1) / total_default_1) / (COUNTIF(default_flag = 0) / total_default_0) > 1 THEN 'Riesgoso'
+    WHEN (COUNTIF(default_flag = 1) / total_default_1) / (COUNTIF(default_flag = 0) / total_default_0) < 1 THEN 'Confiable'
+    ELSE 'NO DEFINIDO'
+  END AS categoria,
+  CASE
+    WHEN (COUNTIF(default_flag = 1) / total_default_1) / (COUNTIF(default_flag = 0) / total_default_0) > 1 THEN 1
+    WHEN (COUNTIF(default_flag = 1) / total_default_1) / (COUNTIF(default_flag = 0) / total_default_0) < 1 THEN 0
+    ELSE NULL
+  END AS variable_dummy
+FROM
+  `riesgo-relativo406716.pruebas.cuartil`,
+  Totals
+WHERE cuartil_last_month_salary IN (1, 2, 3, 4)
+GROUP BY cuartil_last_month_salary, total_default_1, total_default_0
+UNION ALL
+SELECT
+  cuartil_delayed_payment AS cuartil,
+  'delayed_payment' AS cuartil_type,
+  COUNTIF(default_flag = 1) / total_default_1 AS ratio_default_1,
+  COUNTIF(default_flag = 0) / total_default_0 AS ratio_default_0,
+  (COUNTIF(default_flag = 1) / total_default_1) / (COUNTIF(default_flag = 0) / total_default_0) AS riesgo_relativo,
+  CASE
+    WHEN (COUNTIF(default_flag = 1) / total_default_1) / (COUNTIF(default_flag = 0) / total_default_0) > 1 THEN 'Riesgoso'
+    WHEN (COUNTIF(default_flag = 1) / total_default_1) / (COUNTIF(default_flag = 0) / total_default_0) < 1 THEN 'Confiable'
+    ELSE 'NO DEFINIDO'
+  END AS categoria,
+  CASE
+    WHEN (COUNTIF(default_flag = 1) / total_default_1) / (COUNTIF(default_flag = 0) / total_default_0) > 1 THEN 1
+    WHEN (COUNTIF(default_flag = 1) / total_default_1) / (COUNTIF(default_flag = 0) / total_default_0) < 1 THEN 0
+    ELSE NULL
+  END AS variable_dummy
+FROM
+  `riesgo-relativo406716.pruebas.cuartil`,
+  Totals
+WHERE cuartil_delayed_payment IN (1, 2, 3, 4)
+GROUP BY cuartil_delayed_payment, total_default_1, total_default_0
+UNION ALL
+SELECT
+  cuartil_debt_ratio AS cuartil,
+  'debt_ratio' AS cuartil_type,
+  COUNTIF(default_flag = 1) / total_default_1 AS ratio_default_1,
+  COUNTIF(default_flag = 0) / total_default_0 AS ratio_default_0,
+  (COUNTIF(default_flag = 1) / total_default_1) / (COUNTIF(default_flag = 0) / total_default_0) AS riesgo_relativo,
+  CASE
+    WHEN (COUNTIF(default_flag = 1) / total_default_1) / (COUNTIF(default_flag = 0) / total_default_0) > 1 THEN 'Riesgoso'
+    WHEN (COUNTIF(default_flag = 1) / total_default_1) / (COUNTIF(default_flag = 0) / total_default_0) < 1 THEN 'Confiable'
+    ELSE 'NO DEFINIDO'
+  END AS categoria,
+  CASE
+    WHEN (COUNTIF(default_flag = 1) / total_default_1) / (COUNTIF(default_flag = 0) / total_default_0) > 1 THEN 1
+    WHEN (COUNTIF(default_flag = 1) / total_default_1) / (COUNTIF(default_flag = 0) / total_default_0) < 1 THEN 0
+    ELSE NULL
+  END AS variable_dummy
+FROM
+  `riesgo-relativo406716.pruebas.cuartil`,
+  Totals
+WHERE cuartil_debt_ratio IN (1, 2, 3, 4)
+GROUP BY cuartil_debt_ratio, total_default_1, total_default_0
+UNION ALL
+SELECT
+  cuartil_age AS cuartil,
+  'age' AS cuartil_type,
+  COUNTIF(default_flag = 1) / total_default_1 AS ratio_default_1,
+  COUNTIF(default_flag = 0) / total_default_0 AS ratio_default_0,
+  (COUNTIF(default_flag = 1) / total_default_1) / (COUNTIF(default_flag = 0) / total_default_0) AS riesgo_relativo,
+  CASE
+    WHEN (COUNTIF(default_flag = 1) / total_default_1) / (COUNTIF(default_flag = 0) / total_default_0) > 1 THEN 'Riesgoso'
+    WHEN (COUNTIF(default_flag = 1) / total_default_1) / (COUNTIF(default_flag = 0) / total_default_0) < 1 THEN 'Confiable'
+    ELSE 'NO DEFINIDO'
+  END AS categoria,
+  CASE
+    WHEN (COUNTIF(default_flag = 1) / total_default_1) / (COUNTIF(default_flag = 0) / total_default_0) > 1 THEN 1
+    WHEN (COUNTIF(default_flag = 1) / total_default_1) / (COUNTIF(default_flag = 0) / total_default_0) < 1 THEN 0
+    ELSE NULL
+  END AS variable_dummy
+FROM
+  `riesgo-relativo406716.pruebas.cuartil`,
+  Totals
+WHERE cuartil_age IN (1, 2, 3, 4)
+GROUP BY cuartil_age, total_default_1, total_default_0
+UNION ALL
+SELECT
+  cuartil_more_90_days AS cuartil,
+  'more_90_days' AS cuartil_type,
+  COUNTIF(default_flag = 1) / total_default_1 AS ratio_default_1,
+  COUNTIF(default_flag = 0) / total_default_0 AS ratio_default_0,
+  (COUNTIF(default_flag = 1) / total_default_1) / (COUNTIF(default_flag = 0) / total_default_0) AS riesgo_relativo,
+  CASE
+    WHEN (COUNTIF(default_flag = 1) / total_default_1) / (COUNTIF(default_flag = 0) / total_default_0) > 1 THEN 'Riesgoso'
+    WHEN (COUNTIF(default_flag = 1) / total_default_1) / (COUNTIF(default_flag = 0) / total_default_0) < 1 THEN 'Confiable'
+    ELSE 'NO DEFINIDO'
+  END AS categoria,
+  CASE
+    WHEN (COUNTIF(default_flag = 1) / total_default_1) / (COUNTIF(default_flag = 0) / total_default_0) > 1 THEN 1
+    WHEN (COUNTIF(default_flag = 1) / total_default_1) / (COUNTIF(default_flag = 0) / total_default_0) < 1 THEN 0
+    ELSE NULL
+  END AS variable_dummy
+FROM
+  `riesgo-relativo406716.pruebas.cuartil`,
+  Totals
+WHERE cuartil_more_90_days IN (1, 2, 3, 4)
+GROUP BY cuartil_more_90_days, total_default_1, total_default_0
+UNION ALL
+SELECT
+  cuartil_number_dependet AS cuartil,
+  'number_dependet' AS cuartil_type,
+  COUNTIF(default_flag = 1) / total_default_1 AS ratio_default_1,
+  COUNTIF(default_flag = 0) / total_default_0 AS ratio_default_0,
+  (COUNTIF(default_flag = 1) / total_default_1) / (COUNTIF(default_flag = 0) / total_default_0) AS riesgo_relativo,
+  CASE
+    WHEN (COUNTIF(default_flag = 1) / total_default_1) / (COUNTIF(default_flag = 0) / total_default_0) > 1 THEN 'Riesgoso'
+    WHEN (COUNTIF(default_flag = 1) / total_default_1) / (COUNTIF(default_flag = 0) / total_default_0) < 1 THEN 'Confiable'
+    ELSE 'NO DEFINIDO'
+  END AS categoria,
+  CASE
+    WHEN (COUNTIF(default_flag = 1) / total_default_1) / (COUNTIF(default_flag = 0) / total_default_0) > 1 THEN 1
+    WHEN (COUNTIF(default_flag = 1) / total_default_1) / (COUNTIF(default_flag = 0) / total_default_0) < 1 THEN 0
+    ELSE NULL
+  END AS variable_dummy
+FROM
+  `riesgo-relativo406716.pruebas.cuartil`,
+  Totals
+WHERE cuartil_number_dependet IN (1, 2, 3, 4)
+GROUP BY cuartil_number_dependet, total_default_1, total_default_0
+UNION ALL
+SELECT
+  cuartil_secured_lines AS cuartil,
+  'secured_lines' AS cuartil_type,
+  COUNTIF(default_flag = 1) / total_default_1 AS ratio_default_1,
+  COUNTIF(default_flag = 0) / total_default_0 AS ratio_default_0,
+  (COUNTIF(default_flag = 1) / total_default_1) / (COUNTIF(default_flag = 0) / total_default_0) AS riesgo_relativo,
+  CASE
+    WHEN (COUNTIF(default_flag = 1) / total_default_1) / (COUNTIF(default_flag = 0) / total_default_0) > 1 THEN 'Riesgoso'
+    WHEN (COUNTIF(default_flag = 1) / total_default_1) / (COUNTIF(default_flag = 0) / total_default_0) < 1 THEN 'Confiable'
+        ELSE 'NO DEFINIDO'
+  END AS categoria,
+  CASE
+    WHEN (COUNTIF(default_flag = 1) / total_default_1) / (COUNTIF(default_flag = 0) / total_default_0) > 1 THEN 1
+    WHEN (COUNTIF(default_flag = 1) / total_default_1) / (COUNTIF(default_flag = 0) / total_default_0) < 1 THEN 0
+    ELSE NULL
+  END AS variable_dummy
+FROM
+  `riesgo-relativo406716.pruebas.cuartil`,
+  Totals
+WHERE cuartil_secured_lines IN (1, 2, 3, 4)
+GROUP BY cuartil_secured_lines, total_default_1, total_default_0
+UNION ALL
+SELECT
+  cuartil_total_loans AS cuartil,
+  'total_loans' AS cuartil_type,
+  COUNTIF(default_flag = 1) / total_default_1 AS ratio_default_1,
+  COUNTIF(default_flag = 0) / total_default_0 AS ratio_default_0,
+  (COUNTIF(default_flag = 1) / total_default_1) / (COUNTIF(default_flag = 0) / total_default_0) AS riesgo_relativo,
+  CASE
+    WHEN (COUNTIF(default_flag = 1) / total_default_1) / (COUNTIF(default_flag = 0) / total_default_0) > 1 THEN 'Riesgoso'
+    WHEN (COUNTIF(default_flag = 1) / total_default_1) / (COUNTIF(default_flag = 0) / total_default_0) < 1 THEN 'Confiable'
+    ELSE 'NO DEFINIDO'
+  END AS categoria,
+  CASE
+    WHEN (COUNTIF(default_flag = 1) / total_default_1) / (COUNTIF(default_flag = 0) / total_default_0) > 1 THEN 1
+    WHEN (COUNTIF(default_flag = 1) / total_default_1) / (COUNTIF(default_flag = 0) / total_default_0) < 1 THEN 0
+    ELSE NULL
+  END AS variable_dummy
+FROM
+  `riesgo-relativo406716.pruebas.cuartil`,
+  Totals
+WHERE cuartil_total_loans IN (1, 2, 3, 4)
+GROUP BY cuartil_total_loans, total_default_1, total_default_0;
+
+TABLA GENERAL
+
+SELECT
+tg.user_id,
+tg.age,
+tg.cuartil_age,
+tg.riesgo_age,
+tg.dummy_age,
+tg.sex,
+tg.default_flag,
+tg.last_month_salary_limpio,
+tg.cuartil_last_month_salary,
+tg.riesgo_last_month_salary,
+tg.dummy_last_month_salary,
+tg.number_dependents_limpio,
+tg.cuartil_number_dependet,
+tg.riesgo_number_dependet,
+tg.dummy_number_dependet,
+tg.more_90_days_overdue,
+tg.cuartil_more_90_days,
+tg.riesgo_more_90_days,
+tg.dummy_more_90_days,
+tg.number_times_delayed_payment_loan_30_59_days,
+tg.cuartil_delayed_payment,
+tg.riesgo_delayed_payment,
+tg.dummy_delayed_payment,
+tg.debt_ratio_limpio,
+tg.cuartil_debt_ratio,
+tg.riesgo_debt_ratio,
+tg.dummy_debt_ratio,
+tg.using_lines_not_secured_personal_assets_limpio,
+tg.cuartil_secured_lines,
+tg.riesgo_secured_lines,
+tg.dummy_secured_lines,
+tg.total_loans,
+tg.cuartil_total_loans,
+tg.riesgo_total_loan,
+tg.dummy_total_loans,
+tg.loan_other,
+tg.loan_real_state,
+s.score,
+s.dummy_score
+FROM `riesgo-relativo406716.pruebas.TablaGeneral` tg
+LEFT JOIN
+`riesgo-relativo406716.pruebas.score` s
+ON
+tg.user_id = s.user_id
