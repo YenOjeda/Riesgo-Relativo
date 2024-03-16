@@ -32,7 +32,7 @@ Conte con 4 datasets, una relacionada con la información de los clientes del ba
 - Score Crediticio.
 - Matriz de confusión (evalua la efectividad del modelo para predecir correctamente el riesgo de incumplimiento).
 
-# Insides
+# Insights
 
 - Los jovenes tienen un MAYOR RIESGO de ser malos pagadores.
 - Las personas con un mayor número de creditos activos tienen un MENOR RIESGO de ser malos pagadores.
