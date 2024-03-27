@@ -38,10 +38,13 @@ Conte con 4 datasets, una relacionada con la información de los clientes del ba
 - Las personas con un mayor número de creditos activos tienen un MENOR RIESGO de ser malos pagadores.
 - Las personas que se han retrasado más de 90 días en sus pagos tienen un MAYOR RIESGO de ser malos pagadores.
 
-# HERRAMIENTAS UTILIZADAS
+# Herramientas y Lenguajes
 
     •  Big Query (SQL).
     •  Google Colab (Python).
     •  Looker Studio.
     •  Google Slides.
     •  Loom.
+
+# Dashboard
+## Riesgo Relativo / Score Crediticio / Dashboard using Looker Studio ![Riesgo Relativo](https://raw.githubusercontent.com/YenOjeda/YenOjeda/main/Riesgo_Relativo-5.jpg)
