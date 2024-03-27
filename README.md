@@ -1,4 +1,4 @@
-# PROYECTO RIESGO RELATIVO
+# Análisis de Riesgo Relativo para el sector financiero
 
 En el actual escenario financiero, la disminución de las tasas de interés ha generado un notable aumento en la demanda de crédito en el banco "Super Caja". Sin embargo, esta creciente demanda ha sobrecargado al equipo de análisis de crédito, que se encuentra actualmente inmerso en un proceso manual ineficiente y demorado para evaluar las numerosas solicitudes de préstamo. 
 
